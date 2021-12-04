@@ -1,0 +1,20 @@
+[package]
+name = "day01"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+itools = [ "itertools" ]
+
+[dependencies]
+lazy_static = "1.4"
+itertools = { version = "0.10", optional = true }
+
+[dev-dependencies]
+criterion = { version = "0.3", features = ["html_reports"] }
+
+[[bench]]
+name = "bench"
+harness = false
