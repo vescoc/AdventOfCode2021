@@ -22,7 +22,7 @@ input :: IO String
 input = readFile "../input"
 
 solve :: (Line Int -> Bool) -> String -> Int
-solve g i = length $ filter (>1) $ map length $ group $ sort $ do
+solve g i = length . filter (>1) . map length . group . sort $ do
   lx <- lines i
   let l = read lx :: Line Int
   guard (g l)
