@@ -80,14 +80,16 @@ impl Line {
 
 fn solve<F>(input: &str, mut f: F) -> usize
 where
-    F: FnMut(Line, &mut Display<Point, usize>),
+    F: FnMut(&Line) -> bool,
 {
     input
         .lines()
         .map(|line| line.parse())
         .try_fold(Display::new(), |mut display, line| {
             line.map(|line| {
-                f(line, &mut display);
+                if f(&line) {
+                    line.draw(&mut display);
+                }
                 display
             })
         })
@@ -98,15 +100,11 @@ where
 }
 
 fn solve_1(input: &str) -> usize {
-    solve(input, |line, display| {
-        if line.is_vertical() || line.is_horizontal() {
-            line.draw(display);
-        }
-    })
+    solve(input, |line| line.is_vertical() || line.is_horizontal())
 }
 
 fn solve_2(input: &str) -> usize {
-    solve(input, |line, display| line.draw(display))
+    solve(input, |_| true)
 }
 
 pub fn part_1() -> usize {
