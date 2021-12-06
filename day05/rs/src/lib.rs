@@ -78,25 +78,20 @@ impl Line {
     }
 }
 
-fn solve<F>(input: &str, mut f: F) -> usize
+fn solve<F>(input: &str, f: F) -> usize
 where
     F: FnMut(&Line) -> bool,
 {
-    input
+    let mut display = Display::new();
+    for line in input
         .lines()
-        .map(|line| line.parse())
-        .try_fold(Display::new(), |mut display, line| {
-            line.map(|line| {
-                if f(&line) {
-                    line.draw(&mut display);
-                }
-                display
-            })
-        })
-        .expect("invalid input")
-        .values()
-        .filter(|v| **v > 1)
-        .count()
+        .map(|line| line.parse().expect("invalid input"))
+        .filter(f)
+    {
+        line.draw(&mut display);
+    }
+
+    display.values().filter(|v| **v > 1).count()
 }
 
 fn solve_1(input: &str) -> usize {

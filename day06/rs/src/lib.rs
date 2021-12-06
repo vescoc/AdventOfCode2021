@@ -5,26 +5,27 @@ lazy_static! {
 }
 
 fn solve(input: &str, mut count: usize) -> u128 {
-    let mut lanterfish_lvl: [u128; 9] = input
+    let mut lanternfish_lvl = [0; 9];
+
+    for n in input
         .split(',')
         .map(|n| n.parse::<usize>().expect("invalid input"))
-        .fold([0; 9], |mut acc, n| {
-            acc[n as usize] += 1;
-            acc
-        });
+    {
+        lanternfish_lvl[n as usize] += 1;
+    }
 
     while count > 0 {
-        let new_borns = lanterfish_lvl[0];
-        for i in 1..lanterfish_lvl.len() {
-            lanterfish_lvl[i - 1] = lanterfish_lvl[i];
+        let new_borns = lanternfish_lvl[0];
+        for i in 1..lanternfish_lvl.len() {
+            lanternfish_lvl[i - 1] = lanternfish_lvl[i];
         }
-        lanterfish_lvl[6] += new_borns;
-        lanterfish_lvl[8] = new_borns;
+        lanternfish_lvl[6] += new_borns;
+        lanternfish_lvl[8] = new_borns;
 
         count -= 1;
     }
 
-    lanterfish_lvl.into_iter().sum()
+    lanternfish_lvl.into_iter().sum()
 }
 
 fn solve_1(input: &str) -> u128 {
