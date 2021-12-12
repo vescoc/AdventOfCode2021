@@ -1,7 +1,7 @@
-use std::{
-    collections::{HashMap, HashSet, VecDeque},
-    str::FromStr,
-};
+use std::collections::{HashMap, HashSet, VecDeque};
+use std::fmt::Debug;
+use std::hash::Hash;
+use std::str::FromStr;
 
 use lazy_static::lazy_static;
 
@@ -9,45 +9,63 @@ lazy_static! {
     static ref INPUT: &'static str = include_str!("../../input");
 }
 
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
-enum Cave {
-    Start,
-    End,
-    Big(String),
-    Small(String),
-}
+#[derive(Clone, Eq, PartialEq, Hash)]
+struct Value(u32);
 
-impl FromStr for Cave {
+impl FromStr for Value {
     type Err = &'static str;
 
     fn from_str(input: &str) -> Result<Self, Self::Err> {
+        Ok(Value(
+            input.chars().fold(0, |acc, c| acc << 8 | u32::from(c)),
+        ))
+    }
+}
+
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+enum Cave<T> {
+    Start,
+    End,
+    Big(T),
+    Small(T),
+}
+
+impl<T> Cave<T>
+where
+    T: FromStr,
+    T::Err: Debug,
+{
+    fn new(input: &str) -> Self {
         use Cave::*;
 
-        Ok(match input {
+        match input {
             "start" => Start,
             "end" => End,
             s => {
                 let lowercase_s = s.to_lowercase();
-                let s = s.to_string();
                 if lowercase_s == s {
-                    Small(s)
+                    Small(T::from_str(s).unwrap())
                 } else {
-                    Big(s)
+                    Big(T::from_str(s).unwrap())
                 }
             }
-        })
+        }
     }
 }
 
 #[derive(Debug)]
-struct Graph {
+struct Graph<T> {
     #[allow(dead_code)]
-    nodes: HashSet<Cave>,
-    edges: HashMap<Cave, HashSet<Cave>>,
+    nodes: HashSet<Cave<T>>,
+    edges: HashMap<Cave<T>, HashSet<Cave<T>>>,
 }
 
-fn parse_input(input: &str) -> Graph {
-    let mut nodes: HashMap<String, Cave> = HashMap::new();
+fn parse_input<T>(input: &str) -> Graph<T>
+where
+    T: Clone + FromStr + Eq + Hash,
+    T::Err: Debug,
+{
+    let mut nodes: HashMap<String, Cave<T>> = HashMap::new();
     let mut edges = HashMap::new();
     for line in input.lines() {
         let mut parts = line.split('-');
@@ -55,8 +73,8 @@ fn parse_input(input: &str) -> Graph {
         let start = parts.next().unwrap();
         let end = parts.next().unwrap();
 
-        let start_node = start.parse::<Cave>().unwrap();
-        let end_node = end.parse::<Cave>().unwrap();
+        let start_node = Cave::new(start);
+        let end_node = Cave::new(end);
 
         nodes
             .entry(start.to_string())
@@ -76,7 +94,7 @@ fn parse_input(input: &str) -> Graph {
     }
 
     let nodes = {
-        let mut r: HashSet<Cave> = HashSet::with_capacity(nodes.values().count());
+        let mut r: HashSet<Cave<T>> = HashSet::with_capacity(nodes.values().count());
         for node in nodes.into_values() {
             r.insert(node);
         }
@@ -86,10 +104,14 @@ fn parse_input(input: &str) -> Graph {
     Graph { nodes, edges }
 }
 
-fn solve(input: &str, max_visits: usize, max_visits_count: usize) -> usize {
+fn solve<T>(input: &str, max_visits: usize, max_visits_count: usize) -> usize
+where
+    T: Clone + FromStr + Eq + Hash,
+    T::Err: Debug,
+{
     use Cave::*;
 
-    let graph = parse_input(input);
+    let graph: Graph<T> = parse_input(input);
 
     let mut count = 0;
 
@@ -168,11 +190,11 @@ fn solve(input: &str, max_visits: usize, max_visits_count: usize) -> usize {
 }
 
 fn solve_1(input: &str) -> usize {
-    solve(input, 1, usize::MAX)
+    solve::<Value>(input, 1, usize::MAX)
 }
 
 fn solve_2(input: &str) -> usize {
-    solve(input, 2, 2)
+    solve::<Value>(input, 2, 2)
 }
 
 pub fn part_1() -> usize {
@@ -223,6 +245,13 @@ he-WI
 zg-he
 pj-fs
 start-RW"#;
+    }
+
+    #[test]
+    fn test_parse_input() {
+        let graph: Graph<Value> = parse_input(&EXAMPLE_1);
+
+        assert_eq!(graph.nodes.len(), 6);
     }
 
     #[test]
