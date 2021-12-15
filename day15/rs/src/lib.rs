@@ -24,11 +24,23 @@ struct Chitons {
 }
 
 impl Chitons {
-    fn new(tile: Vec<Vec<Node>>) -> Self {
+    fn new(tile: &[Vec<u32>], repeat: usize) -> Self {
+        assert!(repeat != 0);
         Self {
-            dim: (tile[0].len() * 5, tile.len() * 5),
+            dim: (tile[0].len() * repeat, tile.len() * repeat),
             tile_dim: (tile[0].len(), tile.len()),
-            tile,
+            tile: tile
+                .iter()
+                .map(|v| {
+                    v.iter()
+                        .map(|risk_level| Node {
+                            risk_level: *risk_level,
+                            total_risk: u32::MAX,
+                            previous: None,
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>(),
             chitons: UnsafeCell::new(HashMap::new()),
         }
     }
@@ -82,94 +94,19 @@ impl IndexMut<&(usize, usize)> for Chitons {
     }
 }
 
-fn parse_input(input: &str) -> Result<Vec<Vec<Node>>, &'static str> {
+fn parse_input(input: &str) -> Result<Vec<Vec<u32>>, &'static str> {
     input
         .lines()
         .map(|line| {
             line.chars()
-                .map(|c| {
-                    Ok(Node {
-                        risk_level: c.to_digit(10).ok_or("invalid digit")?,
-                        total_risk: u32::MAX,
-                        previous: None,
-                    })
-                })
+                .map(|c| c.to_digit(10).ok_or("invalid digit"))
                 .collect::<Result<Vec<_>, &'static str>>()
         })
         .collect::<Result<Vec<_>, _>>()
 }
 
-fn solve_1(input: &str) -> u32 {
-    let mut chitons = parse_input(input).unwrap();
-
-    let (dimx, dimy) = (chitons[0].len(), chitons.len());
-
-    let mut t = HashSet::new();
-    {
-        let zero_zero = &mut chitons[0][0];
-        zero_zero.total_risk = 0;
-
-        let zero_one = &mut chitons[1][0];
-        zero_one.previous = Some((0, 0));
-        zero_one.total_risk = zero_one.risk_level;
-
-        let one_zero = &mut chitons[0][1];
-        one_zero.previous = Some((0, 0));
-        one_zero.total_risk = one_zero.risk_level;
-
-        t.insert((0, 1));
-        t.insert((1, 0));
-    }
-    
-    while let Some((x, y)) = t
-        .iter()
-        .min_by_key(|(x, y)| chitons[*y][*x].total_risk)
-        .copied()
-    {
-        t.remove(&(x, y));
-
-        if x == dimx - 1 && y == dimy - 1 {
-            break;
-        }
-
-        let total_risk = chitons[y][x].total_risk;
-
-        for (dx, dy) in [(-1, 0), (0, 1), (0, -1), (1, 0)] {
-            let p = match dx.cmp(&0) {
-                Ordering::Equal => Some(x),
-                Ordering::Less if x > 0 => Some(x - 1),
-                Ordering::Greater if x < dimx - 1 => Some(x + 1),
-                _ => None,
-            }
-            .and_then(|x| match dy.cmp(&0) {
-                Ordering::Equal => Some((x, y)),
-                Ordering::Less if y > 0 => Some((x, y - 1)),
-                Ordering::Greater if y < dimy - 1 => Some((x, y + 1)),
-                _ => None,
-            });
-
-            if let Some((nx, ny)) = p {
-                let node = &mut chitons[ny][nx];
-
-                let n_total_risk = total_risk + node.risk_level;
-                if node.total_risk == u32::MAX {
-                    t.insert((nx, ny));
-
-                    node.total_risk = n_total_risk;
-                    node.previous = Some((x, y));
-                } else if t.contains(&(nx, ny)) && node.total_risk > n_total_risk {
-                    node.total_risk = n_total_risk;
-                    node.previous = Some((x, y));
-                }
-            }
-        }
-    }
-
-    chitons[dimy - 1][dimx - 1].total_risk
-}
-
-fn solve_2(input: &str) -> u32 {
-    let mut chitons = Chitons::new(parse_input(input).unwrap());
+fn solve(input: &str, repeat: usize) -> u32 {
+    let mut chitons = Chitons::new(&parse_input(input).unwrap(), repeat);
 
     let (dimx, dimy) = chitons.dim();
 
@@ -196,7 +133,7 @@ fn solve_2(input: &str) -> u32 {
         .copied()
     {
         t.remove(&(x, y));
-    
+
         if x == dimx - 1 && y == dimy - 1 {
             break;
         }
@@ -235,6 +172,14 @@ fn solve_2(input: &str) -> u32 {
     }
 
     chitons[&(dimx - 1, dimy - 1)].total_risk
+}
+
+fn solve_1(input: &str) -> u32 {
+    solve(input, 1)
+}
+
+fn solve_2(input: &str) -> u32 {
+    solve(input, 5)
 }
 
 pub fn part_1() -> u32 {
@@ -276,12 +221,10 @@ mod tests {
 
     #[test]
     fn test_index() {
-        let mut chitons = Chitons::new(parse_input(&INPUT).unwrap());
+        let chitons = Chitons::new(&parse_input(&INPUT).unwrap(), 5);
 
         let c1 = &chitons[&(0, 0)];
         let c2 = &chitons[&(0, 1)];
-
-        let c3 = &mut chitons[&(0, 0)];
 
         assert_eq!(c1.total_risk, c2.total_risk);
     }
