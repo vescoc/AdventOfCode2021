@@ -1,6 +1,5 @@
-use std::cell::UnsafeCell;
 use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::ops::{Index, IndexMut};
 
 use lazy_static::lazy_static;
@@ -17,31 +16,41 @@ struct Node {
 }
 
 struct Chitons {
-    tile: Vec<Vec<Node>>,
-    chitons: UnsafeCell<HashMap<(usize, usize), Node>>,
+    chitons: Vec<Vec<Node>>,
     dim: (usize, usize),
-    tile_dim: (usize, usize),
 }
 
 impl Chitons {
     fn new(tile: &[Vec<u32>], repeat: usize) -> Self {
         assert!(repeat != 0);
-        Self {
-            dim: (tile[0].len() * repeat, tile.len() * repeat),
-            tile_dim: (tile[0].len(), tile.len()),
-            tile: tile
-                .iter()
-                .map(|v| {
-                    v.iter()
-                        .map(|risk_level| Node {
-                            risk_level: *risk_level,
+
+        let tile_dim = (tile[0].len(), tile.len());
+        let dim = (tile_dim.0 * repeat, tile_dim.1 * repeat);
+
+        let chitons = (0..dim.1)
+            .map(|y| {
+                (0..dim.0)
+                    .map(|x| {
+                        let (dimx, dimy) = tile_dim;
+
+                        let ((x, tx), (y, ty)) =
+                            ((x % dimx, (x / dimx) as u32), (y % dimy, (y / dimy) as u32));
+
+                        let risk_level = tile[y][x];
+
+                        Node {
+                            risk_level: (risk_level + tx + ty - 1) % 9 + 1,
                             total_risk: u32::MAX,
                             previous: None,
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>(),
-            chitons: UnsafeCell::new(HashMap::new()),
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+
+        Self {
+            dim: (tile[0].len() * repeat, tile.len() * repeat),
+            chitons: chitons,
         }
     }
 
@@ -53,44 +62,14 @@ impl Chitons {
 impl Index<&(usize, usize)> for Chitons {
     type Output = Node;
 
-    fn index(&self, p: &(usize, usize)) -> &Self::Output {
-        let chitons = unsafe { &mut *self.chitons.get() };
-        chitons.entry(*p).or_insert_with(|| {
-            let (x, y) = p;
-
-            let (dimx, dimy) = self.tile_dim;
-
-            let ((x, tx), (y, ty)) = ((x % dimx, (x / dimx) as u32), (y % dimy, (y / dimy) as u32));
-
-            let node = &self.tile[y][x];
-
-            Node {
-                risk_level: (node.risk_level + tx + ty - 1) % 9 + 1,
-                total_risk: u32::MAX,
-                previous: None,
-            }
-        })
+    fn index(&self, (x, y): &(usize, usize)) -> &Self::Output {
+        &self.chitons[*y][*x]
     }
 }
 
 impl IndexMut<&(usize, usize)> for Chitons {
-    fn index_mut(&mut self, p: &(usize, usize)) -> &mut Self::Output {
-        let chitons = self.chitons.get_mut();
-        chitons.entry(*p).or_insert_with(|| {
-            let (x, y) = p;
-
-            let (dimx, dimy) = self.tile_dim;
-
-            let ((x, tx), (y, ty)) = ((x % dimx, (x / dimx) as u32), (y % dimy, (y / dimy) as u32));
-
-            let node = &self.tile[y][x];
-
-            Node {
-                risk_level: (node.risk_level + tx + ty - 1) % 9 + 1,
-                total_risk: u32::MAX,
-                previous: None,
-            }
-        })
+    fn index_mut(&mut self, (x, y): &(usize, usize)) -> &mut Self::Output {
+        &mut self.chitons[*y][*x]
     }
 }
 
