@@ -144,29 +144,32 @@ impl Number {
 
                 Some(Explode(left, right))
             }
-            Pair(left, right) => match left.explode(level + 1) {
-                Some(Explode(l, r)) => {
-                    right.add_left(r);
-                    Some(ExplodeLeft(l))
-                }
-                Some(ExplodeRight(value)) => {
-                    right.add_left(value);
-                    Some(ExplodeDone)
-                }
-                Some(e) => Some(e),
-                None => match right.explode(level + 1) {
-                    Some(Explode(l, r)) => {
-                        left.add_right(l);
-                        Some(ExplodeRight(r))
+            Pair(left, right) => left
+                .explode(level + 1)
+                .map(|e| match e {
+                    Explode(l, r) => {
+                        right.add_left(r);
+                        ExplodeLeft(l)
                     }
-                    Some(ExplodeLeft(value)) => {
-                        left.add_right(value);
-                        Some(ExplodeDone)
+                    ExplodeRight(value) => {
+                        right.add_left(value);
+                        ExplodeDone
                     }
-                    Some(e) => Some(e),
-                    None => None,
-                },
-            },
+                    e => e,
+                })
+                .or_else(|| {
+                    right.explode(level + 1).map(|e| match e {
+                        Explode(l, r) => {
+                            left.add_right(l);
+                            ExplodeRight(r)
+                        }
+                        ExplodeLeft(value) => {
+                            left.add_right(value);
+                            ExplodeDone
+                        }
+                        e => e,
+                    })
+                }),
         }
     }
 
