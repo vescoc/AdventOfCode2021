@@ -7,9 +7,24 @@ use lazy_static::lazy_static;
 
 lazy_static! {
     static ref INPUT: &'static str = include_str!("../../input");
+    static ref ALL_TRANSFORMATIONS: Vec<Vec<Transform>> = all_transformations();
 }
 
 type Transform = fn(Point) -> Point;
+
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone)]
+struct Point([i32; 3]);
+
+#[derive(Debug)]
+struct Scanner {
+    beacons: HashSet<Point>,
+    probes: Vec<Point>,
+    distances: HashMap<i32, usize>,
+}
+
+fn invalid_number<E>(_: E) -> &'static str {
+    "invalid number"
+}
 
 fn all_transformations() -> Vec<Vec<Transform>> {
     let mut res = vec![];
@@ -29,19 +44,6 @@ fn all_transformations() -> Vec<Vec<Transform>> {
     }
 
     res
-}
-
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone)]
-struct Point([i32; 3]);
-
-#[derive(Debug)]
-struct Scanner {
-    beacons: HashSet<Point>,
-    probes: Vec<Point>,
-}
-
-fn invalid_number<E>(_: E) -> &'static str {
-    "invalid number"
 }
 
 impl Point {
@@ -119,7 +121,14 @@ impl FromStr for Point {
 
 impl Scanner {
     fn new(beacons: HashSet<Point>, probes: Vec<Point>) -> Self {
-        Self { beacons, probes }
+        let mut distances = HashMap::new();
+        for (i, p1) in beacons.iter().copied().enumerate().take(beacons.len() - 1) {
+            for p2 in beacons.iter().skip(i + 1).copied() {
+                *distances.entry((p1 - p2).manhattan()).or_insert(0) += 1;
+            }
+        }
+        
+        Self { beacons, probes, distances }
     }
 
     fn transform(
@@ -209,9 +218,24 @@ fn find_merge(
 ) -> Option<(String, String, HashSet<Point>, Vec<Point>)> {
     for (id1, s1) in scanners.iter() {
         for (id2, s2) in scanners.iter().filter(|(id, _)| id != &id1) {
+            if s1
+                .distances
+                .iter()
+                .filter_map(|(d, _)| {
+                    if let Some(c2) = s2.distances.get(d) {
+                        Some(c2)
+                    } else {
+                        None
+                    }
+                })
+                .sum::<usize>() < 12
+            {
+                continue;
+            }
+            
             for p1 in s1.beacons.iter().copied() {
                 for p2 in s2.beacons.iter().copied() {
-                    for transform in &all_transformations() {
+                    for transform in ALL_TRANSFORMATIONS.iter() {
                         let ts2 = s2.transform(p2, transform, p1);
                         if ts2.intersection(&s1.beacons).count() < 12 {
                             continue;
@@ -313,10 +337,5 @@ mod tests {
     #[test]
     fn same_results_2() {
         assert_eq!(solve_2(&INPUT), 3621);
-    }
-
-    #[test]
-    fn test_all_transformations() {
-        assert_eq!(all_transformations().len(), 48);
     }
 }
