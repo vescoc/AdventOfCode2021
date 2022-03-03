@@ -33,11 +33,15 @@ impl FromStr for Step {
         fn parse(input: &str) -> Result<i32, &'static str> {
             input.parse().map_err(|_| "invalid number")
         }
-        
+
         let captures = RE.captures(input).ok_or("invalid format")?;
-        
+
         Ok(Step {
-            step_type: if &captures[1] == "on" { StepType::On } else { StepType::Off },
+            step_type: if &captures[1] == "on" {
+                StepType::On
+            } else {
+                StepType::Off
+            },
             cuboid: Cuboid {
                 x: (parse(&captures[2])?, parse(&captures[3])?),
                 y: (parse(&captures[4])?, parse(&captures[5])?),
@@ -49,55 +53,71 @@ impl FromStr for Step {
 
 impl Cuboid {
     fn is_empty(&self) -> bool {
-        self.x.0 > self.x.1
-            || self.y.0 > self.y.1
-            || self.z.0 > self.z.1
+        self.x.0 > self.x.1 || self.y.0 > self.y.1 || self.z.0 > self.z.1
     }
-    
+
     fn cut(self, other: &Cuboid, total: &mut u64) -> Vec<Cuboid> {
         fn push(result: &mut Vec<Cuboid>, cuboid: Cuboid) {
             if !cuboid.is_empty() {
                 result.push(cuboid);
             }
         }
-        
+
         let mut result = vec![];
         if !self.intersect(other) {
             result.push(self);
         } else {
-            push(&mut result, Cuboid {
-                x: (self.x.0, other.x.0 - 1),
-                ..self
-            });
-            
-            push(&mut result, Cuboid {
-                x: (other.x.1 + 1, self.x.1),
-                ..self
-            });
+            push(
+                &mut result,
+                Cuboid {
+                    x: (self.x.0, other.x.0 - 1),
+                    ..self
+                },
+            );
 
-            push(&mut result, Cuboid {
-                x: (self.x.0.max(other.x.0), self.x.1.min(other.x.1)),
-                y: (self.y.0, other.y.0 - 1),
-                z: (self.z.0, self.z.1),
-            });
+            push(
+                &mut result,
+                Cuboid {
+                    x: (other.x.1 + 1, self.x.1),
+                    ..self
+                },
+            );
 
-            push(&mut result, Cuboid {
-                x: (self.x.0.max(other.x.0), self.x.1.min(other.x.1)),
-                y: (other.y.1 + 1, self.y.1),
-                z: (self.z.0, self.z.1),
-            });
-            
-            push(&mut result, Cuboid {
-                x: (self.x.0.max(other.x.0), self.x.1.min(other.x.1)),
-                y: (self.y.0.max(other.y.0), self.y.1.min(other.y.1)),
-                z: (self.z.0, other.z.0 - 1),
-            });
+            push(
+                &mut result,
+                Cuboid {
+                    x: (self.x.0.max(other.x.0), self.x.1.min(other.x.1)),
+                    y: (self.y.0, other.y.0 - 1),
+                    z: (self.z.0, self.z.1),
+                },
+            );
 
-            push(&mut result, Cuboid {
-                x: (self.x.0.max(other.x.0), self.x.1.min(other.x.1)),
-                y: (self.y.0.max(other.y.0), self.y.1.min(other.y.1)),
-                z: (other.z.1 + 1, self.z.1),
-            });
+            push(
+                &mut result,
+                Cuboid {
+                    x: (self.x.0.max(other.x.0), self.x.1.min(other.x.1)),
+                    y: (other.y.1 + 1, self.y.1),
+                    z: (self.z.0, self.z.1),
+                },
+            );
+
+            push(
+                &mut result,
+                Cuboid {
+                    x: (self.x.0.max(other.x.0), self.x.1.min(other.x.1)),
+                    y: (self.y.0.max(other.y.0), self.y.1.min(other.y.1)),
+                    z: (self.z.0, other.z.0 - 1),
+                },
+            );
+
+            push(
+                &mut result,
+                Cuboid {
+                    x: (self.x.0.max(other.x.0), self.x.1.min(other.x.1)),
+                    y: (self.y.0.max(other.y.0), self.y.1.min(other.y.1)),
+                    z: (other.z.1 + 1, self.z.1),
+                },
+            );
 
             *total -= self.volume() - result.iter().map(|cuboid| cuboid.volume()).sum::<u64>();
         }
@@ -105,9 +125,7 @@ impl Cuboid {
     }
 
     fn intersect(&self, other: &Cuboid) -> bool {
-        in_range(&self.x, &other.x)
-            && in_range(&self.y, &other.y)
-            && in_range(&self.z, &other.z)
+        in_range(&self.x, &other.x) && in_range(&self.y, &other.y) && in_range(&self.z, &other.z)
     }
 
     fn volume(&self) -> u64 {
@@ -125,13 +143,17 @@ fn in_range(r1: &(i32, i32), r2: &(i32, i32)) -> bool {
 }
 
 fn cuboid_in_region(cuboid: &Cuboid) -> bool {
-    cuboid.x.0 >= -50 && cuboid.x.1 <= 50
-        && cuboid.y.0 >= -50 && cuboid.y.1 <= 50
-        && cuboid.z.0 >= -50 && cuboid.z.1 <= 50
+    cuboid.x.0 >= -50
+        && cuboid.x.1 <= 50
+        && cuboid.y.0 >= -50
+        && cuboid.y.1 <= 50
+        && cuboid.z.0 >= -50
+        && cuboid.z.1 <= 50
 }
 
 fn solve<P>(input: &str, mut predicate: P) -> u64
-    where P: FnMut(&Cuboid) -> bool,
+where
+    P: FnMut(&Cuboid) -> bool,
 {
     let mut total = 0;
     let mut cuboids: Vec<Cuboid> = vec![];
@@ -147,11 +169,11 @@ fn solve<P>(input: &str, mut predicate: P) -> u64
                     cuboids.push(step.cuboid);
                 }
             }
-            Ok(_) => {},
+            Ok(_) => {}
             Err(e) => panic!("invalid input: {}", e),
         }
     }
-    
+
     total
 }
 
@@ -180,7 +202,6 @@ mod tests {
 on x=11..13,y=11..13,z=11..13
 off x=9..11,y=9..11,z=9..11
 on x=10..10,y=10..10,z=10..10"#;
-        
         static ref INPUT_MEDIUM: &'static str = r#"on x=-20..26,y=-36..17,z=-47..7
 on x=-20..33,y=-21..23,z=-26..28
 on x=-22..28,y=-29..23,z=-38..16
@@ -203,7 +224,6 @@ off x=18..30,y=-20..-8,z=-3..13
 on x=-41..9,y=-7..43,z=-33..15
 on x=-54112..-39298,y=-85059..-49293,z=-27449..7877
 on x=967..23432,y=45373..81175,z=27513..53682"#;
-
         static ref INPUT_LARGE: &'static str = r#"on x=-5..47,y=-31..22,z=-19..33
 on x=-44..5,y=-27..21,z=-14..35
 on x=-49..-1,y=-11..42,z=-10..38
@@ -264,17 +284,16 @@ off x=-27365..46395,y=31009..98017,z=15428..76570
 off x=-70369..-16548,y=22648..78696,z=-1892..86821
 on x=-53470..21291,y=-120233..-33476,z=-44150..38147
 off x=-93533..-4276,y=-16170..68771,z=-104985..-24507"#;
-
     }
 
     #[test]
     fn same_results_1_small() {
-         assert_eq!(solve_1(&INPUT_SMALL), 39);
+        assert_eq!(solve_1(&INPUT_SMALL), 39);
     }
-    
+
     #[test]
     fn same_results_1_medium() {
-         assert_eq!(solve_1(&INPUT_MEDIUM), 590784);
+        assert_eq!(solve_1(&INPUT_MEDIUM), 590784);
     }
 
     #[test]
