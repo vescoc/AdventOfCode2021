@@ -1,60 +1,98 @@
-use std::iter;
-use std::time::Instant;
-//use rayon::prelude::*;
+/// thanks https://www.reddit.com/user/LinAGKar/
 
-alu::alu!(
-    Alu
-    { include "../input" }
-);
+use std::cmp::max;
 
-fn solve_1() -> String {
-    let mut time = Instant::now();
-    
-    iter::successors(Some([9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9]),
-                     |v| {
-                         let mut v = *v;
-                         let mut d = 13;
-                         loop {
-                             if v[d] - 1 == 0 {
-                                 v[d] = 9;
-                                 d -= 1;
-                             } else {
-                                 v[d] -= 1;
-                                 break Some(v);
-                             }
-                         }
-                     })
-        .enumerate()
-        .inspect(|(i, v)| {
-            if i % 100_000_000 == 0 {
-                println!("elapsed: {}s {:?}", time.elapsed().as_secs(), v);
-                time = Instant::now();
-            }
-        })
-        //.par_bridge()
-        .find(|(_, v)| match Alu::new().run(v.iter().copied()) {
-            Some(0) => true,
-            _ => false,
-        })
-        .map(|(_, v)| v.iter().map(|d| char::from_digit(*d as u32, 10).unwrap()).collect())
-        .unwrap()    
+use lazy_static::lazy_static;
+
+lazy_static! {
+    static ref INPUT: &'static str = include_str!("../../input");
 }
 
-fn solve_2() -> String {
-    todo!()
+pub fn part_1() -> i64 {
+    let mut lines = INPUT.lines();
+    let mut pop = Vec::new();
+    let mut add_table_0 = Vec::new();
+    let mut add_table_1 = Vec::new();
+
+    let mut get_num = |index| {
+        lines
+            .nth(index)
+            .unwrap()
+            .split_whitespace()
+            .nth(2)
+            .unwrap_or("0")
+            .parse::<i64>()
+            .unwrap_or(0)
+    };
+
+    for _ in 0..14 {
+        pop.push(get_num(4) == 26);
+        add_table_0.push(get_num(0));
+        add_table_1.push(get_num(9));
+        get_num(1);
+    }
+
+    let mut stack = Vec::new();
+    let mut num = vec![0; 14];
+    for i in 0..14 {
+        if pop[i] {
+            let (push_pos, push_add) = stack.pop().unwrap();
+            let pop_sub = -add_table_0[i];
+            let pushed_num = 9 + max(push_add, pop_sub);
+            num[push_pos] = pushed_num - push_add;
+            num[i] = pushed_num - pop_sub;
+        } else {
+            stack.push((i, add_table_1[i]));
+        }
+    }
+
+    num.into_iter().fold(0, |acc, num| acc * 10 + num)
 }
 
-pub fn part_1() -> String {
-    solve_1()
-}
+pub fn part_2() -> i64 {
+    let mut lines = INPUT.lines();
+    let mut pop = Vec::new();
+    let mut add_table_0 = Vec::new();
+    let mut add_table_1 = Vec::new();
 
-pub fn part_2() -> String {
-    solve_2()
+    let mut get_num = |index| {
+        lines
+            .nth(index)
+            .unwrap()
+            .split_whitespace()
+            .nth(2)
+            .unwrap_or("0")
+            .parse::<i64>()
+            .unwrap_or(0)
+    };
+
+    for _ in 0..14 {
+        pop.push(get_num(4) == 26);
+        add_table_0.push(get_num(0));
+        add_table_1.push(get_num(9));
+        get_num(1);
+    }
+
+    let mut stack = Vec::new();
+    let mut num = vec![0; 14];
+    for i in 0..14 {
+        if pop[i] {
+            let (push_pos, push_add) = stack.pop().unwrap();
+            let pop_sub = -add_table_0[i];
+            let pushed_num = 1 + max(push_add, pop_sub);
+            num[push_pos] = pushed_num - push_add;
+            num[i] = pushed_num - pop_sub;
+        } else {
+            stack.push((i, add_table_1[i]));
+        }
+    }
+
+    num.into_iter().fold(0, |acc, num| acc * 10 + num)
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::iter;
 
     #[test]
     fn test_example_1() {
@@ -65,7 +103,7 @@ mod tests {
                 mul x -1
             }
         );
-    
+
         let mut example = Example1::new();
         assert_eq!(example.run(iter::once(10)), Some(0));
         assert_eq!(example.x, -10);
